@@ -1,35 +1,39 @@
 #!/bin/python
 
 import tweepy
+import json
 
 try:
-    appCredsFile=open('application_secrets','r')
+    appCredsFile=open('application_secrets.json','r')
 except:
-    appCredsFile=open('application_secrets','w')
-    appCredsFile.write('consumer_key=\n')
-    appCredsFile.write('consumer_secret=\n')
+    template=dict()
+    template['consumer_key']=""
+    template['consumer_secret']=""
+    appCredsFile=open('application_secrets.json','w')
+    appCredsFile.write(json.dumps(template))
     appCredsFile.close()
-    exit('Please place the consumer key and consumer secret in ./application_secrets')
+    exit('Please place the consumer key and consumer secret in ./application_secrets.json')
 
-consumer_key=''
-consumer_secret=''
-
-for line in appCredsFile.readlines():
-    line=line.split('=')
-    if line[0] == 'consumer_key':
-        consumer_key=line[1].strip()
-    if line[0] == 'consumer_secret':
-        consumer_secret=line[1].strip()
+try:
+    keys=json.load(appCredsFile)
+except:
+    exit('application_secrets.json must be a valid JSON file')
 
 appCredsFile.close()
 
+try:
+    consumer_key=keys['consumer_key']
+    consumer_secret=keys['consumer_secret']
+except Exception, e:
+    exit("Could not parse consumer_key and consumer_secret from application_secrets.json: %s" % e)
+
 if (consumer_key == '') or (consumer_secret == ''):
-    exit('Please place the consumer key and consumer secret in ./application_secrets')
+    exit('Please place the consumer key and consumer secret in ./application_secrets.json')
 
 try:
-    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+    auth = tweepy.OAuthHandler(keys['consumer_key'], keys['consumer_secret'])
 except Exception, e:
-    exit("Could not get verification link: %s" % e)
+    exit("Could not start OAuth handshake: %s" % e)
 
 url=auth.get_authorization_url()
 print('Please visit the following link and log in to twitter to verify access to your account')
@@ -44,12 +48,12 @@ while not verified:
         verified=True
     except Exception, e:
         print("Could not get API token: %s" % e)
+
+keys['access_token']=token[0]
+keys['access_secret']=token[1]
     
-appCredsFile=open('application_secrets','a+')
-appCredsFile.write("access_token=%s" % token[0])
-appCredsFile.write('\n')
-appCredsFile.write("access_secret=%s" % token[1])
-appCredsFile.write('\n')
+appCredsFile=open('application_secrets.json','w')
+appCredsFile.write(json.dumps(keys))
 appCredsFile.close()
 
 print('done.')
